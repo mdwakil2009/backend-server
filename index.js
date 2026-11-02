@@ -47,6 +47,16 @@ const { email } = req.params;
 const result = await bookcollection.find({ userEmail: email }).toArray();
 res.send(result);
 });
+
+app.patch("/my-book/:id",async(req,res)=>{
+     const {id}= req.params
+     const updateData = req.body
+     const  result = await bookcollection.updateOne(
+          {_id:new ObjectId(id)},
+          {$set:updateData}
+     )
+     res.json(result)
+})
 app.get("/",(req,res)=>{
      res.send({message:"Server is Running fine!"})
 })
