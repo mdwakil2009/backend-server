@@ -36,7 +36,13 @@ app.get("/books",async(req,res)=>{
      res.send(result)
 
 })
+app.get("/book/:id",async(req,res)=>{
+     const {id} = req.params
+     const result = await bookcollection.findOne({_id:new ObjectId(id)})
+     res.send(result)
+      
 
+}) 
 app.get("/",(req,res)=>{
      res.send({message:"Server is Running fine!"})
 })
