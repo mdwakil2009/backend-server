@@ -41,8 +41,12 @@ app.get("/book/:id",async(req,res)=>{
      const result = await bookcollection.findOne({_id:new ObjectId(id)})
      res.send(result)
       
-
 }) 
+app.get("/my-books/:email", async (req, res) => {
+const { email } = req.params;
+const result = await bookcollection.find({ userEmail: email }).toArray();
+res.send(result);
+});
 app.get("/",(req,res)=>{
      res.send({message:"Server is Running fine!"})
 })
