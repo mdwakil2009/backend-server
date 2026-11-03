@@ -38,7 +38,7 @@ app.get("/books",async(req,res)=>{
 })
 app.get("/book/:id",async(req,res)=>{
      const {id} = req.params
-     const result = await bookcollection.findOne({_id:new ObjectId(id)})
+     const result = await bookcollection.findOne({_id:id    })
      res.send(result)
       
 }) 
@@ -57,6 +57,13 @@ app.patch("/my-book/:id",async(req,res)=>{
      )
      res.json(result)
 })
+
+app.delete("/my-book/:id",async(req,res)=>{
+     const {id}=req.params
+     const result = await  bookcollection.deleteOne({_id:new ObjectId(id)})
+     res.json(result)
+})
+
 app.get("/",(req,res)=>{
      res.send({message:"Server is Running fine!"})
 })
