@@ -31,8 +31,25 @@ app.post("/add-book", async (req, res) => {
   console.log(result);
   res.send(result);
 });
+// app.get("/books", async (req, res) => {
+//   const result = await bookcollection.find().toArray();
+//   res.send(result);
+// });
+app.get("/arrivals",async(req,res)=>{
+  const result = await bookcollection.find().limit(12).toArray()
+  res.send(result)
+})
 app.get("/books", async (req, res) => {
-  const result = await bookcollection.find().toArray();
+  const category = req.query.category;
+
+  let query = {};
+
+  if (category) {
+    query = { category: category };
+  }
+
+  const result = await bookcollection.find(query).toArray();
+
   res.send(result);
 });
 app.get("/book/:id", async (req, res) => {
