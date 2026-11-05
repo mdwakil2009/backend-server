@@ -26,23 +26,33 @@ const db = mongoClient.db("booknook");
 const bookcollection = db.collection("book");
 const borrowscollection = db.collection("borrows");
 
+const JWKS = createRemoteJWKSet(
+  new URL(`${process.env.CLIENT_URL}/api/auth/jwks`),
+);
+
 const verifyToken = async (req, res, next) => {
   const authHeader = req.headers.authorization;
-  if (!authHeader) {
-    return res.status(401).send({ message: "Unauthorized" });
+
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).send({
+      message: "Unauthorized! Token is missing.",
+    });
   }
+
   const token = authHeader.split(" ")[1];
-  if (!token) {
-    return res.status(401).send({ message: "Unauthorized" });
-  }
-  const JWKS = createRemoteJWKSet(
-    new URL(`${process.env.CLIENT_URL}/api/auth/jwks`),
-  );
+
   try {
     const { payload } = await jwtVerify(token, JWKS);
+
+    req.user = payload;
+
     next();
   } catch (error) {
-    return res.status(500).send({ message: "Server Error!" });
+    console.error("JWT Verification Error:", error);
+
+    return res.status(401).send({
+      message: "Invalid or expired token!",
+    });
   }
 };
 app.post("/add-book",verifyToken, async (req, res) => {
@@ -105,16 +115,19 @@ app.delete("/my-book/:id",verifyToken, async (req, res) => {
   const result = await bookcollection.deleteOne({ _id: new ObjectId(id) });
   res.json(result);
 });
-// http://localhost:8000//my-borrows
-app.post("/borrows",verifyToken, async (req, res) => {
+app.post("/borrows", verifyToken, async (req, res) => {
   try {
     const data = req.body;
     const { bookId, userEmail } = data;
 
-    // Check if this user already borrowed this book
+    if (!bookId || !userEmail) {
+      return res.status(400).send({ message: "Book ID and email are required!" });
+    }
+
+    // Check if the user already borrowed this book
     const alreadyBorrowed = await borrowscollection.findOne({
-      bookId: bookId,
-      userEmail: userEmail,
+      bookId,
+      userEmail,
     });
 
     if (alreadyBorrowed) {
@@ -123,33 +136,48 @@ app.post("/borrows",verifyToken, async (req, res) => {
       });
     }
 
-    // Check available copies
-    const book = await bookcollection.findOne({
-      _id: bookId,
-    });
+    // Find book
+    const book = await bookcollection.findOne({ _id: bookId });
 
     if (!book) {
-      return res.status(404).send({
-        message: "Book not found!",
-      });
+      return res.status(404).send({ message: "Book not found!" });
     }
 
-    if (book.availableCopies <= 0) {
-      return res.status(400).send({
-        message: "No copies available!",
-      });
+    // Use availableCopies, or totalCopies if availableCopies does not exist
+    const availableCopies = book.availableCopies ?? book.totalCopies ?? 0;
+
+    if (availableCopies <= 0) {
+      return res.status(400).send({ message: "No copies available!" });
     }
 
     // Decrease available copies
-    await bookcollection.updateOne(
+    const updateResult = await bookcollection.updateOne(
       {
         _id: bookId,
-        availableCopies: { $gt: 0 },
+        $expr: {
+          $gt: [
+            { $ifNull: ["$availableCopies", "$totalCopies"] },
+            0,
+          ],
+        },
       },
-      {
-        $inc: { availableCopies: -1 },
-      },
+      [
+        {
+          $set: {
+            availableCopies: {
+              $subtract: [
+                { $ifNull: ["$availableCopies", "$totalCopies"] },
+                1,
+              ],
+            },
+          },
+        },
+      ]
     );
+
+    if (updateResult.modifiedCount === 0) {
+      return res.status(400).send({ message: "No copies available!" });
+    }
 
     // Save borrow information
     const result = await borrowscollection.insertOne(data);
