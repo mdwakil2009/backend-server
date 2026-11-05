@@ -68,26 +68,21 @@ app.get("/books", async (req, res) => {
 
   res.send(result);
 });
-app.get("/book/:id", verifyToken, async (req, res) => {
-  const { id } = req.params;
-
-  if (!ObjectId.isValid(id)) {
-    return res.status(400).send({
-      message: "Invalid Book ID",
+app.get("/book/:id", async (req, res) => {
+  try {
+    const result = await bookcollection.findOne({
+      _id: req.params.id,
     });
+
+    if (!result) {
+      return res.status(404).send({ message: "Book Not Found" });
+    }
+
+    res.send(result);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({ message: "Failed to load book details" });
   }
-
-  const result = await bookcollection.findOne({
-    _id: new ObjectId(id),
-  });
-
-  if (!result) {
-    return res.status(404).send({
-      message: "Book Not Found",
-    });
-  }
-
-  res.send(result);
 });
 app.get("/my-books/:email",verifyToken, async (req, res) => {
   const { email } = req.params;
