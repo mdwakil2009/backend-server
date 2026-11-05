@@ -70,7 +70,23 @@ app.get("/books", async (req, res) => {
 });
 app.get("/book/:id", verifyToken, async (req, res) => {
   const { id } = req.params;
-  const result = await bookcollection.findOne({ _id: id });
+
+  if (!ObjectId.isValid(id)) {
+    return res.status(400).send({
+      message: "Invalid Book ID",
+    });
+  }
+
+  const result = await bookcollection.findOne({
+    _id: new ObjectId(id),
+  });
+
+  if (!result) {
+    return res.status(404).send({
+      message: "Book Not Found",
+    });
+  }
+
   res.send(result);
 });
 app.get("/my-books/:email",verifyToken, async (req, res) => {
@@ -177,3 +193,4 @@ app.get("/", (req, res) => {
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`);
 });
+export default app;
